@@ -3,6 +3,7 @@ import re
 import sys
 import time
 import logging
+import pytz
 from pyinotify import WatchManager, Notifier, EventsCodes, ProcessEvent
 from termcolor import colored
 from datetime import datetime
@@ -28,7 +29,9 @@ def get_event_type(log_line):
 def format_date(input_date):
     try:
         input_datetime = datetime.strptime(input_date, "%Y-%m-%dT%H:%M:%S.%f")
-        formatted_date = input_datetime.strftime("%d/%m/%Y %H:%M:%S")
+        paris_timezone = pytz.timezone('Europe/Paris')
+        input_datetime_paris = input_datetime.replace(tzinfo=pytz.utc).astimezone(paris_timezone)
+        formatted_date = input_datetime_paris.strftime("%d/%m/%Y %H:%M:%S")
         return formatted_date
     except ValueError:
         return None
