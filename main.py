@@ -9,7 +9,8 @@ from termcolor import colored
 from datetime import datetime
 
 log_file_path = '/var/log/psono_ee/audit.log'
-eol = '=' * 60 + '\n'
+
+monitored_groups = []
 
 logging.basicConfig(
     level=logging.INFO,
@@ -39,27 +40,61 @@ def format_date(input_date):
 
 def parse_log_line(log_line):
     patterns = [
-        (r'^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+) logger=([^,]*), user_ip=(\d+\.\d+\.\d+\.\d+), req_method=(\w+), req_url=([^,]+), success=(\w+), hostname=([\w\d]+), status=(\w+), event=(\w+)$', []),
-        (r'^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+) logger=([^,]*), user_ip=(\d+\.\d+\.\d+\.\d+), req_method=(\w+), req_url=([^,]+), success=(\w+), hostname=([\w\d]+), status=(\w+), event=(\w+), user=([^,]+), user_id=([\w\d-]+)$', ["user", "user_id"]),
-        (r'^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+) logger=([^,]*), user_ip=(\d+\.\d+\.\d+\.\d+), req_method=(\w+), req_url=([^,]+), success=(\w+), hostname=([\w\d]+), status=(\w+), event=(\w+), user=([^,]+), user_id=([\w\d-]+), kwarg_secret_id=([\w\d-]+)$', ["user", "user_id", "kwarg_secret_id"]),
-        (r'^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+) logger=([^,]*), user_ip=(\d+\.\d+\.\d+\.\d+), req_method=(\w+), req_url=([^,]+), success=(\w+), hostname=([\w\d]+), status=(\w+), event=(\w+), user=([^,]+), user_id=([\w\d-]+), kwarg_datastore_id=([\w\d-]+)$', ["user", "user_id", "kwarg_datastore_id"]),
-        (r'^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+) logger=([^,]*), user_ip=(\d+\.\d+\.\d+\.\d+), req_method=(\w+), req_url=([^,]+), success=(\w+), hostname=([\w\d]+), status=(\w+), event=(\w+), user=([^,]+), user_id=([\w\d-]+), kwarg_link_share_id=([\w\d-]+)$', ["user", "user_id", "kwarg_link_share_id"]),
-        (r'^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+) logger=([^,]*), user_ip=(\d+\.\d+\.\d+\.\d+), req_method=(\w+), req_url=([^,]+), success=(\w+), hostname=([\w\d]+), status=(\w+), event=(\w+), errors=([^,]+), user=([^,]+), user_id=([\w\d-]+)$', ["errors", "user", "user_id"]),
-        (r'^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+) logger=([^,]*), user_ip=(\d+\.\d+\.\d+\.\d+), req_method=(\w+), req_url=([^,]+), success=(\w+), hostname=([\w\d]+), status=(\w+), event=(\w+), user=([^,]+), user_id=([\w\d-]+), kwarg_security_report_id=([\w\d-]+)$', ["user", "user_id", "kwarg_security_report_id"]),
-        (r'^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+) logger=([^,]*), user_ip=(\d+\.\d+\.\d+\.\d+), req_method=(\w+), req_url=([^,]+), success=(\w+), hostname=([\w\d]+), status=(\w+), event=(\w+), user=([^,]+), user_id=([\w\d-]+), kwarg_token_id=([\w\d-]+)$', ["user", "user_id", "kwarg_token_id"]),
-        (r'^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+) logger=([^,]*), user_ip=(\d+\.\d+\.\d+\.\d+), req_method=(\w+), req_url=([^,]+), success=(\w+), hostname=([\w\d]+), status=(\w+), event=(\w+), user=([^,]+), user_id=([\w\d-]+), kwarg_administrated_user_id=([\w\d-]+)$', ["user", "user_id", "kwarg_administrated_user_id"]),
-        (r'^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+) logger=([^,]*), user_ip=(\d+\.\d+\.\d+\.\d+), req_method=(\w+), req_url=([^,]+), success=(\w+), hostname=([\w\d]+), status=(\w+), event=(\w+), user=([^,]+), user_id=([\w\d-]+), kwarg_secret_link_id=([\w\d-]+)$', ["user", "user_id", "kwarg_secret_link_id"]),
-        (r'^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+) logger=([^,]*), user_ip=(\d+\.\d+\.\d+\.\d+), req_method=(\w+), req_url=([^,]+), success=(\w+), hostname=([\w\d]+), status=(\w+), event=(\w+), user=([^,]+), user_id=([\w\d-]+), kwarg_group_id=([\w\d-]+)$', ["user", "user_id", "kwarg_group_id"]),
-        (r'^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+) logger=([^,]*), user_ip=(\d+\.\d+\.\d+\.\d+), req_method=(\w+), req_url=([^,]+), success=(\w+), hostname=([\w\d]+), status=(\w+), event=(\w+), user=([^,]+), user_id=([\w\d-]+), kwarg_ldap_group_map_id=([\w\d-]+)$', ["user", "user_id", "kwarg_ldap_group_map_id"]),
-        (r'^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+) logger=([^,]*), user_ip=(\d+\.\d+\.\d+\.\d+), req_method=(\w+), req_url=([^,]+), success=(\w+), hostname=([\w\d]+), status=(\w+), event=(\w+), user=([^,]+), user_id=([\w\d-]+), kwarg_membership_id=([\w\d-]+), kwarg_group_id=([\w\d-]+)$', ["user", "user_id", "kwarg_membership_id", "kwarg_group_id"]),
-        (r'^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+) logger=([^,]*), user_ip=(\d+\.\d+\.\d+\.\d+), req_method=(\w+), req_url=([^,]+), success=(\w+), hostname=([\w\d]+), status=(\w+), event=(\w+), user=([^,]+), user_id=([\w\d-]+), kwarg_membership_id=([\w\d-]+), kwarg_group_id=([\w\d-]+), kwarg_group_name=([\w\d-]+), kwarg_membership_user_id=([\w\d-]+), kwarg_membership_user_name=([^,]+)$', ["user", "user_id", "kwarg_membership_id", "kwarg_group_id", "kwarg_group_name", "kwarg_membership_user_id", "kwarg_membership_user_name"])
+        (
+            r'^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+) logger=([^,]*), user_ip=(\d+\.\d+\.\d+\.\d+), req_method=(\w+), req_url=([^,]+), success=(\w+), hostname=([\w\d]+), status=(\w+), event=(\w+)$',
+            []),
+        (
+            r'^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+) logger=([^,]*), user_ip=(\d+\.\d+\.\d+\.\d+), req_method=(\w+), req_url=([^,]+), success=(\w+), hostname=([\w\d]+), status=(\w+), event=(\w+), user=([^,]+), user_id=([\w\d-]+)$',
+            ["user", "user_id"]),
+        (
+            r'^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+) logger=([^,]*), user_ip=(\d+\.\d+\.\d+\.\d+), req_method=(\w+), req_url=([^,]+), success=(\w+), hostname=([\w\d]+), status=(\w+), event=(\w+), user=([^,]+), user_id=([\w\d-]+), kwarg_secret_id=([\w\d-]+)$',
+            ["user", "user_id", "kwarg_secret_id"]),
+        (
+            r'^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+) logger=([^,]*), user_ip=(\d+\.\d+\.\d+\.\d+), req_method=(\w+), req_url=([^,]+), success=(\w+), hostname=([\w\d]+), status=(\w+), event=(\w+), user=([^,]+), user_id=([\w\d-]+), kwarg_datastore_id=([\w\d-]+)$',
+            ["user", "user_id", "kwarg_datastore_id"]),
+        (
+            r'^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+) logger=([^,]*), user_ip=(\d+\.\d+\.\d+\.\d+), req_method=(\w+), req_url=([^,]+), success=(\w+), hostname=([\w\d]+), status=(\w+), event=(\w+), user=([^,]+), user_id=([\w\d-]+), kwarg_link_share_id=([\w\d-]+)$',
+            ["user", "user_id", "kwarg_link_share_id"]),
+        (
+            r'^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+) logger=([^,]*), user_ip=(\d+\.\d+\.\d+\.\d+), req_method=(\w+), req_url=([^,]+), success=(\w+), hostname=([\w\d]+), status=(\w+), event=(\w+), errors=([^,]+), user=([^,]+), user_id=([\w\d-]+)$',
+            ["errors", "user", "user_id"]),
+        (
+            r'^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+) logger=([^,]*), user_ip=(\d+\.\d+\.\d+\.\d+), req_method=(\w+), req_url=([^,]+), success=(\w+), hostname=([\w\d]+), status=(\w+), event=(\w+), user=([^,]+), user_id=([\w\d-]+), kwarg_security_report_id=([\w\d-]+)$',
+            ["user", "user_id", "kwarg_security_report_id"]),
+        (
+            r'^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+) logger=([^,]*), user_ip=(\d+\.\d+\.\d+\.\d+), req_method=(\w+), req_url=([^,]+), success=(\w+), hostname=([\w\d]+), status=(\w+), event=(\w+), user=([^,]+), user_id=([\w\d-]+), kwarg_token_id=([\w\d-]+)$',
+            ["user", "user_id", "kwarg_token_id"]),
+        (
+            r'^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+) logger=([^,]*), user_ip=(\d+\.\d+\.\d+\.\d+), req_method=(\w+), req_url=([^,]+), success=(\w+), hostname=([\w\d]+), status=(\w+), event=(\w+), user=([^,]+), user_id=([\w\d-]+), kwarg_share_id=([\w\d-]+)$',
+            ["user", "user_id", "kwarg_share_id"]),
+        (
+            r'^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+) logger=([^,]*), user_ip=(\d+\.\d+\.\d+\.\d+), req_method=(\w+), req_url=([^,]+), success=(\w+), hostname=([\w\d]+), status=(\w+), event=(\w+), user=([^,]+), user_id=([\w\d-]+), kwarg_administrated_user_id=([\w\d-]+)$',
+            ["user", "user_id", "kwarg_administrated_user_id"]),
+        (
+            r'^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+) logger=([^,]*), user_ip=(\d+\.\d+\.\d+\.\d+), req_method=(\w+), req_url=([^,]+), success=(\w+), hostname=([\w\d]+), status=(\w+), event=(\w+), user=([^,]+), user_id=([\w\d-]+), kwarg_secret_link_id=([\w\d-]+)$',
+            ["user", "user_id", "kwarg_secret_link_id"]),
+        (
+            r'^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+) logger=([^,]*), user_ip=(\d+\.\d+\.\d+\.\d+), req_method=(\w+), req_url=([^,]+), success=(\w+), hostname=([\w\d]+), status=(\w+), event=(\w+), user=([^,]+), user_id=([\w\d-]+), kwarg_group_id=([\w\d-]+)$',
+            ["user", "user_id", "kwarg_group_id"]),
+        (
+            r'^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+) logger=([^,]*), user_ip=(\d+\.\d+\.\d+\.\d+), req_method=(\w+), req_url=([^,]+), success=(\w+), hostname=([\w\d]+), status=(\w+), event=(\w+), user=([^,]+), user_id=([\w\d-]+), kwarg_ldap_group_map_id=([\w\d-]+)$',
+            ["user", "user_id", "kwarg_ldap_group_map_id"]),
+        (
+            r'^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+) logger=([^,]*), user_ip=(\d+\.\d+\.\d+\.\d+), req_method=(\w+), req_url=([^,]+), success=(\w+), hostname=([\w\d]+), status=(\w+), event=(\w+), user=([^,]+), user_id=([\w\d-]+), kwarg_membership_id=([\w\d-]+), kwarg_group_id=([\w\d-]+)$',
+            ["user", "user_id", "kwarg_membership_id", "kwarg_group_id"]),
+        (
+            r'^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+) logger=([^,]*), user_ip=(\d+\.\d+\.\d+\.\d+), req_method=(\w+), req_url=([^,]+), success=(\w+), hostname=([\w\d]+), status=(\w+), event=(\w+), user=([^,]+), user_id=([\w\d-]+), kwarg_membership_id=([\w\d-]+), kwarg_group_id=([\w\d-]+), kwarg_group_name=([\w\d-]+), kwarg_membership_user_id=([\w\d-]+), kwarg_membership_user_name=([^,]+)$',
+            ["user", "user_id", "kwarg_membership_id", "kwarg_group_id", "kwarg_group_name", "kwarg_membership_user_id",
+             "kwarg_membership_user_name"])
     ]
 
     for pattern, extra_fields in patterns:
         match = re.match(pattern, log_line)
         if match:
             groups = match.groups()
-            log_data = dict(zip(["timestamp", "logger", "user_ip", "req_method", "req_url", "success", "hostname", "status", "event"], groups))
+            log_data = dict(
+                zip(["timestamp", "logger", "user_ip", "req_method", "req_url", "success", "hostname", "status",
+                     "event"], groups))
             for field in extra_fields:
                 log_data[field] = groups[len(log_data)]
             log_data['timestamp'] = format_date(log_data['timestamp'])
@@ -67,6 +102,11 @@ def parse_log_line(log_line):
 
     print(colored(f"Could not parse log line: {log_line}", 'red'))
     return None
+
+
+# TODO: if group id is in monitored groups then send mail
+def monitor_group(log_data):
+    return
 
 
 class EventHandler(ProcessEvent):
@@ -84,7 +124,7 @@ class EventHandler(ProcessEvent):
                     if log_data:
                         for key, value in log_data.items():
                             print(colored(f"{key}: {value}", 'cyan'))
-                    print(eol)
+                    print('=' * 60 + '\n')
                 self.log_file_position = log_file.tell()
 
 
